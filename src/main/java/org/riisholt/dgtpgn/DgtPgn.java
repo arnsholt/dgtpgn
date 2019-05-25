@@ -2,7 +2,9 @@ package org.riisholt.dgtpgn;
 
 import org.openmuc.jrxtx.*;
 
-import org.riisholt.dgtdriver.*;
+import org.riisholt.dgtdriver.DgtDriver;
+import org.riisholt.dgtdriver.moveparser.Game;
+import org.riisholt.dgtdriver.moveparser.MoveParser;
 
 public class DgtPgn {
     public static void main(String[] argv) throws java.io.IOException {
@@ -11,29 +13,30 @@ public class DgtPgn {
         new DgtPgn(argv[0]).run();
     }
 
-    private SerialPort port;
-    private DgtDriver driver;
+    //private SerialPort port;
+    //private DgtDriver driver;
     private DgtPgn(String portName) throws java.io.IOException {
         System.out.println(portName);
-        port = SerialPortBuilder.newBuilder(portName)
+        SerialPort port = SerialPortBuilder.newBuilder(portName)
                                 .setDataBits(DataBits.DATABITS_8)
                                 .setBaudRate(9600)
                                 .setStopBits(StopBits.STOPBITS_1)
                                 .setParity(Parity.NONE)
                                 .setFlowControl(FlowControl.NONE)
                                 .build();
-        driver = new DgtDriver((msg) -> gotMessage(msg), (bytes) -> writeBytes(bytes));
+        MoveParser parser = new MoveParser(this::gameComplete);
+        DgtDriver driver = new DgtDriver(parser::gotMove, (bytes) -> writeBytes(port, bytes));
     }
 
     private void run() {
         System.out.println("Hello world?");
     }
 
-    public void gotMessage(DgtMessage msg) {
-        // TODO
+    public void gameComplete(Game g) {
+        // TODO: Write PGN to file.
     }
 
-    public void writeBytes(byte[] bytes) {
+    public void writeBytes(SerialPort port, byte[] bytes) {
         try {
             port.getOutputStream().write(bytes);
         }
