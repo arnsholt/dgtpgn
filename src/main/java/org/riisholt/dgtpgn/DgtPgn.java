@@ -15,6 +15,7 @@ import java.io.*;
 import java.text.SimpleDateFormat;
 
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Date;
 
 public class DgtPgn {
@@ -58,10 +59,12 @@ public class DgtPgn {
     }
 
     private SerialPort port;
+    private MoveParser parser;
     private DgtDriver driver;
     private String outputPrefix;
     private int gameCount = 0;
-    private ObjectOutputStream debugOut;
+    private FileWriter debugOut;
+    private long startNanos;
     private DgtPgn(String portName, String prefix, boolean debug) throws IOException {
         outputPrefix = prefix;
         System.out.printf("Connecting to %s\n", portName);
@@ -72,13 +75,19 @@ public class DgtPgn {
         port.setNumStopBits(1);
         if(!port.openPort())
             throw new RuntimeException(String.format("Failed to open port %s.", portName));
-        MoveParser parser = new MoveParser(this::gameComplete);
+        parser = new MoveParser(this::gameComplete);
         driver = new DgtDriver(parser::gotMessage, this::writeBytes);
-        if(debug)
-            debugOut = new ObjectOutputStream(new FileOutputStream(String.format("%s.debug", outputPrefix)));
+        if(debug) {
+            debugOut = new FileWriter(String.format("%s.debug", outputPrefix));//new FileOutputStream(String.format("%s.debug", outputPrefix));
+            startNanos = System.nanoTime();
+        }
     }
 
     private void run() throws IOException, InterruptedException {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            // Write out possible partial game on shutdown.
+            parser.endGame();
+        }));
         driver.board();
         driver.clock();
         driver.updateNice();
@@ -95,8 +104,7 @@ public class DgtPgn {
             }
             else {
                 byte[] bytes = Arrays.copyOf(buffer, read);
-                if(debugOut != null)
-                    debugOut.writeObject(new DebugData(true, bytes));
+                debugWrite(true, bytes);
                 driver.gotBytes(bytes);
             }
         }
@@ -119,10 +127,7 @@ public class DgtPgn {
 
     private void writeBytes(byte[] bytes) {
         try {
-            if(debugOut != null) {
-                debugOut.writeObject(new DebugData(false, bytes));
-                debugOut.flush();
-            }
+            debugWrite(false, bytes);
             OutputStream s = port.getOutputStream();
             if(s != null) {
                 s.write(bytes);
@@ -135,5 +140,15 @@ public class DgtPgn {
         catch(IOException e) {
             System.err.printf("Failed to write: %s\n", e.getMessage());
         }
+    }
+
+    private void debugWrite(boolean isInput, byte[] bytes) throws IOException {
+        if(debugOut == null) return;
+
+        long timeDelta = System.nanoTime() - startNanos;
+        char direction = isInput ? '<' : '>';
+        String byteString = new String(Base64.getEncoder().encode(bytes));
+        debugOut.write(String.format("%d %c %s", timeDelta, direction, byteString));
+        debugOut.flush();
     }
 }
