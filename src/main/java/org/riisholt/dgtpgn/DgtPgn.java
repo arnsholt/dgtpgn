@@ -12,7 +12,7 @@ import java.io.*;
 public class DgtPgn extends Program {
     public static void main(String[] argv) throws IOException, InterruptedException {
         Namespace args;
-        ArgumentParser parser = defaultArgumentParser("dgtpdgn");
+        ArgumentParser parser = defaultArgumentParser("dgtpgn");
         try {
             args = parser.parseArgs(argv);
         }

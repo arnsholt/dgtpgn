@@ -94,7 +94,7 @@ public abstract class Program {
         long timeDelta = System.nanoTime() - startNanos;
         char direction = isInput ? '<' : '>';
         String byteString = new String(Base64.getEncoder().encode(bytes));
-        debugOut.write(String.format("%d %c %s", timeDelta, direction, byteString));
+        debugOut.write(String.format("%d %c %s\n", timeDelta, direction, byteString));
         debugOut.flush();
     }
 
