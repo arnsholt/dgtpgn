@@ -61,6 +61,8 @@ public class DgtPgn extends Program {
             if(isDebug())
                 System.out.printf("Got game, writing to %s\n", filename);
             FileWriter writer = new FileWriter(filename);
+            writer.write("[White \"White\"]\n");
+            writer.write("[Black \"Black\"]\n\n");
             writer.write(g.pgn(true));
             writer.close();
         }
